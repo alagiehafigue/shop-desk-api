@@ -1,7 +1,7 @@
 {
   "name": "shop-desk-api",
   "version": "1.0.0",
-  "description": "A backend api for a point of sale system",
+  "description": "ShopDesk POS Backend API",
   "main": "server.js",
   "type": "module",
   "scripts": {
