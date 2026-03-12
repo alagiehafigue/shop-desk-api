@@ -5,7 +5,7 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "dev":"node --watch server.js",
+    "dev": "node --watch server.js",
     "start": "node server.js"
   },
   "repository": {
@@ -21,6 +21,7 @@
   "homepage": "https://github.com/alagiehafigue/shop-desk-api#readme",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
