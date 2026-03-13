@@ -51,3 +51,41 @@ export const loginUser = async ({ email, password }) => {
 
   return { accessToken, refreshToken, user };
 };
+
+export const refreshAccessToken = async (refreshToken) => {
+  const tokenHash = hashToken(refreshToken);
+
+  const result = await pool.query(
+    `SELECT * FROM refresh_tokens WHERE token_hash=$1`,
+    [tokenHash],
+  );
+
+  const storedToken = result.rows[0];
+
+  if (!storedToken) {
+    throw new Error("Invalid refresh token");
+  }
+
+  if (new Date(storedToken.expires_at) < new Date()) {
+    throw new Error("Refresh token expired");
+  }
+
+  const userResult = await pool.query(
+    `SELECT id, role FROM users WHERE id=$1`,
+    [storedToken.user_id],
+  );
+
+  const user = userResult.rows[0];
+
+  const newAccessToken = generateAccessToken(user);
+
+  return newAccessToken;
+};
+
+export const logoutUser = async (refreshToken) => {
+  const tokenHash = hashToken(refreshToken);
+
+  await pool.query(`DELETE FROM refresh_tokens WHERE token_hash=$1`, [
+    tokenHash,
+  ]);
+};
