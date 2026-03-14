@@ -5,6 +5,7 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 
 import authRoutes from "./modules/auth/routes.js";
+import productRoutes from "./modules/products/routes.js";
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(morgan("dev"));
 app.use(cookieParser());
 
 app.use("/auth", authRoutes);
+app.use("/products", productRoutes);
 
 app.get("/health", (req, res) => {
   res.json({
