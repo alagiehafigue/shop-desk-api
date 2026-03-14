@@ -102,3 +102,57 @@ export const createSale = async ({ user_id, data }) => {
     client.release();
   }
 };
+
+export const getReceipt = async (saleId) => {
+  const saleResult = await pool.query(
+    `
+    SELECT 
+      s.id,
+      s.created_at,
+      s.total_amount,
+      s.discount,
+      s.tax,
+      u.name as cashier,
+      p.method as payment_method
+    FROM sales s
+    LEFT JOIN users u ON s.user_id = u.id
+    LEFT JOIN payments p ON p.sale_id = s.id
+    WHERE s.id = $1
+    `,
+    [saleId],
+  );
+
+  const sale = saleResult.rows[0];
+
+  if (!sale) {
+    throw new Error("Sale not found");
+  }
+
+  const itemsResult = await pool.query(
+    `
+    SELECT
+      si.quantity,
+      si.price,
+      si.subtotal,
+      pr.name
+    FROM sale_items si
+    JOIN products pr ON si.product_id = pr.id
+    WHERE si.sale_id = $1
+    `,
+    [saleId],
+  );
+
+  const items = itemsResult.rows;
+
+  return {
+    store: "ShopDesk POS",
+    transaction_id: sale.id,
+    date: sale.created_at,
+    cashier: sale.cashier,
+    payment_method: sale.payment_method,
+    discount: sale.discount,
+    tax: sale.tax,
+    total: sale.total_amount,
+    items,
+  };
+};
