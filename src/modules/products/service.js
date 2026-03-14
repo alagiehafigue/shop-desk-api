@@ -69,3 +69,89 @@ export const deleteProduct = async (id) => {
 
   return true;
 };
+
+export const getProductByBarcode = async (barcode) => {
+  const result = await pool.query(`SELECT * FROM products WHERE barcode=$1`, [
+    barcode,
+  ]);
+
+  return result.rows[0];
+};
+
+export const logInventoryChange = async ({
+  product_id,
+  change_type,
+  quantity,
+  reference_id,
+}) => {
+  await pool.query(
+    `
+    INSERT INTO inventory_logs
+    (product_id, change_type, quantity, reference_id)
+    VALUES ($1,$2,$3,$4)
+    `,
+    [product_id, change_type, quantity, reference_id],
+  );
+};
+
+export const updateStock = async ({
+  product_id,
+  quantity_change,
+  change_type,
+  reference_id,
+}) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const productResult = await client.query(
+      `
+      SELECT stock_quantity
+      FROM products
+      WHERE id=$1
+      FOR UPDATE
+      `,
+      [product_id],
+    );
+
+    const product = productResult.rows[0];
+
+    if (!product) {
+      throw new Error("Product not found");
+    }
+
+    const newStock = product.stock_quantity + quantity_change;
+
+    if (newStock < 0) {
+      throw new Error("Insufficient stock");
+    }
+
+    await client.query(
+      `
+      UPDATE products
+      SET stock_quantity=$1,
+          updated_at=CURRENT_TIMESTAMP
+      WHERE id=$2
+      `,
+      [newStock, product_id],
+    );
+
+    await client.query(
+      `
+      INSERT INTO inventory_logs
+      (product_id, change_type, quantity, reference_id)
+      VALUES ($1,$2,$3,$4)
+      `,
+      [product_id, change_type, quantity_change, reference_id],
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+
+    throw error;
+  } finally {
+    client.release();
+  }
+};

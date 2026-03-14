@@ -4,6 +4,7 @@ import {
   getProductById,
   updateProduct,
   deleteProduct,
+  getProductByBarcode,
 } from "./service.js";
 
 import { createProductSchema, updateProductSchema } from "./validation.js";
@@ -52,4 +53,16 @@ export const remove = async (req, res) => {
   await deleteProduct(req.params.id);
 
   res.json({ message: "Product deleted" });
+};
+
+export const getByBarcode = async (req, res) => {
+  const product = await getProductByBarcode(req.params.barcode);
+
+  if (!product) {
+    return res.status(404).json({
+      message: "Product not found",
+    });
+  }
+
+  res.json(product);
 };
