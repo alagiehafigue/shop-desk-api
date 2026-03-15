@@ -9,6 +9,7 @@ import productRoutes from "./modules/products/routes.js";
 import inventoryRoutes from "./modules/inventory/routes.js";
 import salesRoutes from "./modules/sales/routes.js";
 import paymentRoutes from "./modules/payments/routes.js";
+import customerRoutes from "./modules/customers/routes.js";
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use("/products", productRoutes);
 app.use("/inventory", inventoryRoutes);
 app.use("/sales", salesRoutes);
 app.use("/payments", paymentRoutes);
+app.use("/customers", customerRoutes);
 
 app.get("/health", (req, res) => {
   res.json({

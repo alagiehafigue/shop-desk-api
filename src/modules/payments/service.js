@@ -23,6 +23,30 @@ export const processPayment = async ({ sale_id, method, amount_paid }) => {
       throw new Error("Sale already completed or cancelled");
     }
 
+    const saleInfo = await client.query(
+      `
+  SELECT customer_id, total_amount
+  FROM sales
+  WHERE id=$1
+  `,
+      [sale_id],
+    );
+
+    const { customer_id, total_amount } = saleInfo.rows[0];
+
+    if (customer_id) {
+      const points = Math.floor(total_amount / 10);
+
+      await client.query(
+        `
+    UPDATE customers
+    SET loyalty_points = loyalty_points + $1
+    WHERE id = $2
+    `,
+        [points, customer_id],
+      );
+    }
+
     const total = Number(sale.total_amount);
 
     if (amount_paid < total) {
