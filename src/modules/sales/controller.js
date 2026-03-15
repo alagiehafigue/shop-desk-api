@@ -7,7 +7,7 @@ export const create = async (req, res) => {
 
     const result = await createSale({
       user_id: req.user.id,
-      data,
+      ...data,
     });
 
     res.status(201).json(result);

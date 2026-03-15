@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./modules/auth/routes.js";
 import productRoutes from "./modules/products/routes.js";
 import salesRoutes from "./modules/sales/routes.js";
+import paymentRoutes from "./modules/payments/routes.js";
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use(cookieParser());
 app.use("/auth", authRoutes);
 app.use("/products", productRoutes);
 app.use("/sales", salesRoutes);
+app.use("/payments", paymentRoutes);
 
 app.get("/health", (req, res) => {
   res.json({
