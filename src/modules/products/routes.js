@@ -18,7 +18,7 @@ router.post("/", authenticate, authorize("admin", "manager"), create);
 router.get("/", authenticate, list);
 router.get("/:id", authenticate, getOne);
 router.get("/barcode/:barcode", authenticate, getByBarcode);
-router.patch("/:id", authenticate, update);
-router.delete("/:id", authenticate, remove);
+router.patch("/:id", authenticate, authorize("admin", "manager"), update);
+router.delete("/:id", authenticate, authorize("admin", "manager"), remove);
 
 export default router;
