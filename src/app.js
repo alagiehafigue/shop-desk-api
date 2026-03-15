@@ -4,6 +4,8 @@ import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 
+import { errorHandler } from "./middlewares/errorMiddleware.js";
+
 import authRoutes from "./modules/auth/routes.js";
 import productRoutes from "./modules/products/routes.js";
 import inventoryRoutes from "./modules/inventory/routes.js";
@@ -34,5 +36,15 @@ app.get("/health", (req, res) => {
     message: "ShopDesk API running",
   });
 });
+
+// To catch for all Not Found Page
+app.use((req, res, next) => {
+  const error = new Error(`Not Found - ${req.path}`);
+  res.status(404);
+  next(error); //
+});
+
+// To catch for all generic error
+app.use(errorHandler);
 
 export default app;
