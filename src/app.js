@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 
 import authRoutes from "./modules/auth/routes.js";
 import productRoutes from "./modules/products/routes.js";
+import inventoryRoutes from "./modules/inventory/routes.js";
 import salesRoutes from "./modules/sales/routes.js";
 import paymentRoutes from "./modules/payments/routes.js";
 
@@ -19,6 +20,7 @@ app.use(cookieParser());
 
 app.use("/auth", authRoutes);
 app.use("/products", productRoutes);
+app.use("/inventory", inventoryRoutes);
 app.use("/sales", salesRoutes);
 app.use("/payments", paymentRoutes);
 
