@@ -1,4 +1,4 @@
-import { registerUser, loginUser } from "./service.js";
+import { getUsers, registerUser, loginUser } from "./service.js";
 import { registerSchema, loginSchema } from "./validation.js";
 import { refreshAccessToken, logoutUser } from "./service.js";
 
@@ -79,4 +79,9 @@ export const me = async (req, res) => {
   res.json({
     user: req.user,
   });
+};
+
+export const listUsers = async (req, res) => {
+  const users = await getUsers();
+  res.json(users);
 };

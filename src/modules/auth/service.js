@@ -89,3 +89,11 @@ export const logoutUser = async (refreshToken) => {
     tokenHash,
   ]);
 };
+
+export const getUsers = async () => {
+  const result = await pool.query(
+    `SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC`,
+  );
+
+  return result.rows;
+};
