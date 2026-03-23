@@ -1,6 +1,12 @@
 import pool from "../../config/db.js";
+import { simulateMtnMomoCollection } from "./mtnMomo.js";
 
-export const processPayment = async ({ sale_id, method, amount_paid }) => {
+export const processPayment = async ({
+  sale_id,
+  method,
+  amount_paid,
+  payer_phone,
+}) => {
   const client = await pool.connect();
 
   try {
@@ -53,6 +59,20 @@ export const processPayment = async ({ sale_id, method, amount_paid }) => {
       throw new Error("Insufficient payment");
     }
 
+    let momoMetadata = null;
+
+    if (method === "momo") {
+      if (!payer_phone) {
+        throw new Error("Mobile Money payments require a payer phone number");
+      }
+
+      momoMetadata = await simulateMtnMomoCollection({
+        amount: total,
+        payerPhone: payer_phone,
+        saleId: sale_id,
+      });
+    }
+
     const change = amount_paid - total;
 
     await client.query(
@@ -80,6 +100,8 @@ export const processPayment = async ({ sale_id, method, amount_paid }) => {
       amount_paid,
       change,
       method,
+      momo_currency: momoMetadata?.currency ?? null,
+      momo_reference_id: momoMetadata?.referenceId ?? null,
     };
   } catch (error) {
     await client.query("ROLLBACK");
@@ -87,4 +109,62 @@ export const processPayment = async ({ sale_id, method, amount_paid }) => {
   } finally {
     client.release();
   }
+};
+
+export const getPayments = async () => {
+  const result = await pool.query(`
+    SELECT
+      p.id,
+      p.sale_id,
+      p.method,
+      p.amount,
+      p.created_at,
+      s.total_amount,
+      s.created_at AS sale_date,
+      s.status,
+      u.name AS cashier_name,
+      c.name AS customer_name
+    FROM payments p
+    JOIN sales s ON s.id = p.sale_id
+    LEFT JOIN users u ON u.id = s.user_id
+    LEFT JOIN customers c ON c.id = s.customer_id
+    ORDER BY p.created_at DESC
+  `);
+
+  return result.rows;
+};
+
+export const getPaymentSummary = async () => {
+  const result = await pool.query(`
+    SELECT
+      method,
+      COUNT(*) AS total_payments,
+      SUM(amount) AS total_amount
+    FROM payments
+    GROUP BY method
+    ORDER BY total_amount DESC
+  `);
+
+  return result.rows;
+};
+
+export const getPendingSales = async () => {
+  const result = await pool.query(`
+    SELECT
+      s.id,
+      s.total_amount,
+      s.discount,
+      s.tax,
+      s.created_at,
+      s.status,
+      u.name AS cashier_name,
+      c.name AS customer_name
+    FROM sales s
+    LEFT JOIN users u ON u.id = s.user_id
+    LEFT JOIN customers c ON c.id = s.customer_id
+    WHERE s.status = 'pending'
+    ORDER BY s.created_at DESC
+  `);
+
+  return result.rows;
 };

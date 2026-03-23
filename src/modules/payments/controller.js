@@ -1,4 +1,9 @@
-import { processPayment } from "./service.js";
+import {
+  getPayments,
+  getPaymentSummary,
+  getPendingSales,
+  processPayment,
+} from "./service.js";
 import { processPaymentSchema } from "./validation.js";
 
 export const pay = async (req, res) => {
@@ -13,4 +18,19 @@ export const pay = async (req, res) => {
       message: error.message,
     });
   }
+};
+
+export const list = async (req, res) => {
+  const result = await getPayments();
+  res.json(result);
+};
+
+export const summary = async (req, res) => {
+  const result = await getPaymentSummary();
+  res.json(result);
+};
+
+export const pendingSales = async (req, res) => {
+  const result = await getPendingSales();
+  res.json(result);
 };
