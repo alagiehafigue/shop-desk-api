@@ -1,6 +1,32 @@
 import pool from "../../config/db.js";
 
+function createServiceError(message, statusCode = 400) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
+async function ensureBarcodeIsAvailable(barcode, excludedProductId = null) {
+  if (!barcode) {
+    return;
+  }
+
+  const existingProduct = await getProductByBarcode(barcode);
+
+  if (!existingProduct) {
+    return;
+  }
+
+  if (excludedProductId && String(existingProduct.id) === String(excludedProductId)) {
+    return;
+  }
+
+  throw createServiceError("Barcode is already assigned to another product", 409);
+}
+
 export const createProduct = async (data) => {
+  await ensureBarcodeIsAvailable(data.barcode);
+
   const result = await pool.query(
     `
     INSERT INTO products
@@ -36,6 +62,8 @@ export const getProductById = async (id) => {
 };
 
 export const updateProduct = async (id, data) => {
+  await ensureBarcodeIsAvailable(data.barcode, id);
+
   const result = await pool.query(
     `
     UPDATE products

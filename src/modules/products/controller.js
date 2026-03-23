@@ -17,7 +17,7 @@ export const create = async (req, res) => {
 
     res.status(201).json(product);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(error.statusCode ?? 400).json({ message: error.message });
   }
 };
 
@@ -45,7 +45,7 @@ export const update = async (req, res) => {
 
     res.json(product);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(error.statusCode ?? 400).json({ message: error.message });
   }
 };
 
