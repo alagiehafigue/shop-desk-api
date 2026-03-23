@@ -1,4 +1,5 @@
 import pool from "../../config/db.js";
+import { simulateCardTerminalPayment } from "./cardSimulator.js";
 import { simulateMtnMomoCollection } from "./mtnMomo.js";
 
 export const processPayment = async ({
@@ -6,6 +7,9 @@ export const processPayment = async ({
   method,
   amount_paid,
   payer_phone,
+  card_auth_code,
+  card_holder_name,
+  card_last4,
 }) => {
   const client = await pool.connect();
 
@@ -60,6 +64,7 @@ export const processPayment = async ({
     }
 
     let momoMetadata = null;
+    let cardMetadata = null;
 
     if (method === "momo") {
       if (!payer_phone) {
@@ -69,6 +74,16 @@ export const processPayment = async ({
       momoMetadata = await simulateMtnMomoCollection({
         amount: total,
         payerPhone: payer_phone,
+        saleId: sale_id,
+      });
+    }
+
+    if (method === "card") {
+      cardMetadata = await simulateCardTerminalPayment({
+        amount: total,
+        authCode: card_auth_code,
+        cardHolderName: card_holder_name,
+        cardLast4: card_last4,
         saleId: sale_id,
       });
     }
@@ -100,6 +115,10 @@ export const processPayment = async ({
       amount_paid,
       change,
       method,
+      card_approval_code: cardMetadata?.approvalCode ?? null,
+      card_last4: cardMetadata?.cardLast4 ?? null,
+      card_reference_id: cardMetadata?.referenceId ?? null,
+      card_terminal_status: cardMetadata?.terminalStatus ?? null,
       momo_currency: momoMetadata?.currency ?? null,
       momo_reference_id: momoMetadata?.referenceId ?? null,
     };
