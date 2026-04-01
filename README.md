@@ -150,28 +150,39 @@ To create the database tables, run the SQL file in the **Neon SQL editor**.
 
 # Environment Variables
 
-Create a `.env` file in the project root.
+Create a .env file in the project root (copy .env.example and fill in the values).
 
-Example:
+Required values:
 
 ```
 PORT=5000
 
 DATABASE_URL=your_neon_database_connection_string
 
-JWT_SECRET=your_secret_key
+JWT_ACCESS_SECRET=super-secret
+JWT_REFRESH_SECRET=another-super-secret
 
-JWT_EXPIRES_IN=1d
+ACCESS_TOKEN_EXPIRES=15m
+REFRESH_TOKEN_EXPIRES=7d
+
+MTN_MOMO_BASE_URL=https://sandbox.momodeveloper.mtn.com
+MTN_MOMO_TARGET_ENV=sandbox
+MTN_MOMO_CURRENCY=GHS
+MTN_MOMO_COLLECTION_PRIMARY_KEY=your-sandbox-primary-key
+MTN_MOMO_API_USER=your-sandbox-api-user
+MTN_MOMO_API_KEY=your-sandbox-api-key
+MTN_MOMO_CALLBACK_URL=https://your-app/callback
+MTN_MOMO_STATUS_POLL_ATTEMPTS=8
+MTN_MOMO_STATUS_POLL_INTERVAL_MS=2500
 ```
+
+Register for MTN MoMo sandbox credentials at https://developer.mtn.com to provision the primary key, API user, and API key. The backend will refuse to process mobile money payments until those three variables are populated.
 
 For reference see:
 
 ```
 .env.example
 ```
-
----
-
 # Installation
 
 Clone the repository

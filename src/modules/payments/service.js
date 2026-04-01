@@ -17,7 +17,12 @@ export const processPayment = async ({
     await client.query("BEGIN");
 
     const saleRes = await client.query(
-      `SELECT total_amount, status
+      `SELECT total_amount, status,
+              EXISTS (
+                SELECT 1
+                FROM payments
+                WHERE sale_id = sales.id
+              ) AS has_payment
        FROM sales
        WHERE id = $1`,
       [sale_id],
@@ -29,8 +34,8 @@ export const processPayment = async ({
       throw new Error("Sale not found");
     }
 
-    if (sale.status !== "pending") {
-      throw new Error("Sale already completed or cancelled");
+    if (sale.status !== "pending" || sale.has_payment) {
+      throw new Error("Sale already paid or closed");
     }
 
     const saleInfo = await client.query(
@@ -182,6 +187,11 @@ export const getPendingSales = async () => {
     LEFT JOIN users u ON u.id = s.user_id
     LEFT JOIN customers c ON c.id = s.customer_id
     WHERE s.status = 'pending'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM payments p
+        WHERE p.sale_id = s.id
+      )
     ORDER BY s.created_at DESC
   `);
 
