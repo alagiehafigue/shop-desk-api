@@ -2,6 +2,17 @@ import { getUsers, registerUser, loginUser } from "./service.js";
 import { registerSchema, loginSchema } from "./validation.js";
 import { refreshAccessToken, logoutUser } from "./service.js";
 
+function getRefreshCookieOptions() {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    path: "/auth",
+  };
+}
+
 export const register = async (req, res) => {
   try {
     const data = registerSchema.parse(req.body);
@@ -20,12 +31,7 @@ export const login = async (req, res) => {
 
     const { accessToken, refreshToken, user } = await loginUser(data);
 
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "strict",
-      path: "/auth",
-    });
+    res.cookie("refreshToken", refreshToken, getRefreshCookieOptions());
 
     res.json({
       accessToken,
@@ -62,12 +68,7 @@ export const logout = async (req, res) => {
 
     await logoutUser(refreshToken);
 
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: false,
-      sameSite: "strict",
-      path: "/auth",
-    });
+    res.clearCookie("refreshToken", getRefreshCookieOptions());
 
     res.json({ message: "Logged out successfully" });
   } catch (error) {

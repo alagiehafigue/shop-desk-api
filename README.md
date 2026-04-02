@@ -156,8 +156,10 @@ Required values:
 
 ```
 PORT=5000
+NODE_ENV=development
 
 DATABASE_URL=your_neon_database_connection_string
+CORS_ORIGINS=http://localhost:5173
 
 JWT_ACCESS_SECRET=super-secret
 JWT_REFRESH_SECRET=another-super-secret
@@ -232,6 +234,82 @@ Server will start on:
 ```
 http://localhost:5000
 ```
+
+---
+
+# Deployment
+
+This setup supports:
+
+- local frontend + local backend
+- Vercel frontend + Render backend
+- local frontend + Render backend
+
+## Frontend on Vercel
+
+Deploy the `shop-desk-ui` folder to Vercel.
+
+Set this environment variable in Vercel:
+
+```
+VITE_API_URL=https://your-render-service.onrender.com
+```
+
+The frontend includes `vercel.json` so React routes rewrite to `index.html` correctly.
+
+## Backend on Render
+
+Deploy the `shop-desk-api` folder to Render or use the root `render.yaml` blueprint.
+
+Important Render environment variables:
+
+```
+NODE_ENV=production
+PORT=10000
+DATABASE_URL=your_neon_database_connection_string
+JWT_ACCESS_SECRET=super-secret
+JWT_REFRESH_SECRET=another-super-secret
+ACCESS_TOKEN_EXPIRES=15m
+REFRESH_TOKEN_EXPIRES=7d
+CORS_ORIGINS=http://localhost:5173,https://your-vercel-project.vercel.app
+```
+
+If you use MTN MoMo in production or sandbox, also set:
+
+```
+MTN_MOMO_BASE_URL=...
+MTN_MOMO_TARGET_ENV=...
+MTN_MOMO_CURRENCY=GHS
+MTN_MOMO_COLLECTION_PRIMARY_KEY=...
+MTN_MOMO_API_USER=...
+MTN_MOMO_API_KEY=...
+MTN_MOMO_CALLBACK_URL=...
+MTN_MOMO_STATUS_POLL_ATTEMPTS=8
+MTN_MOMO_STATUS_POLL_INTERVAL_MS=2500
+```
+
+## Cookies and Cross-Origin Auth
+
+- In local development, refresh-token cookies use `sameSite=lax` and `secure=false`.
+- In production, refresh-token cookies use `sameSite=none` and `secure=true` so Vercel and Render can work together across domains.
+- CORS now only allows localhost defaults plus the origins listed in `CORS_ORIGINS`.
+
+## Local Development
+
+Frontend:
+
+```
+VITE_API_URL=http://localhost:5000
+```
+
+Backend:
+
+```
+NODE_ENV=development
+CORS_ORIGINS=http://localhost:5173
+```
+
+If your Vite app runs on a different port locally, add that port to `CORS_ORIGINS`.
 
 ---
 
