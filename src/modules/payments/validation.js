@@ -1,11 +1,16 @@
 import { z } from "zod";
 
+const paystackMethodSchema = z.enum(["momo", "card"]);
+
 export const processPaymentSchema = z.object({
   sale_id: z.uuid(),
   method: z.enum(["cash", "momo", "card"]),
   amount_paid: z.number().positive(),
+  paystack_reference: z.string().min(6).optional(),
+});
+
+export const initializePaymentSchema = z.object({
+  sale_id: z.uuid(),
+  method: paystackMethodSchema,
   payer_phone: z.string().min(10).optional(),
-  card_auth_code: z.string().min(4).optional(),
-  card_holder_name: z.string().min(2).optional(),
-  card_last4: z.string().regex(/^\d{4}$/).optional(),
 });

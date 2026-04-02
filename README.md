@@ -107,8 +107,8 @@ The ShopDesk POS backend supports the following modules:
 Supported payment methods:
 
 - Cash
-- Mobile Money
-- Card
+- Mobile Money via Paystack
+- Card via Paystack
 
 ### Customer Management
 
@@ -167,18 +167,12 @@ JWT_REFRESH_SECRET=another-super-secret
 ACCESS_TOKEN_EXPIRES=15m
 REFRESH_TOKEN_EXPIRES=7d
 
-MTN_MOMO_BASE_URL=https://sandbox.momodeveloper.mtn.com
-MTN_MOMO_TARGET_ENV=sandbox
-MTN_MOMO_CURRENCY=GHS
-MTN_MOMO_COLLECTION_PRIMARY_KEY=your-sandbox-primary-key
-MTN_MOMO_API_USER=your-sandbox-api-user
-MTN_MOMO_API_KEY=your-sandbox-api-key
-MTN_MOMO_CALLBACK_URL=https://your-app/callback
-MTN_MOMO_STATUS_POLL_ATTEMPTS=8
-MTN_MOMO_STATUS_POLL_INTERVAL_MS=2500
+PAYSTACK_SECRET_KEY=sk_test_or_sk_live_key
+PAYSTACK_CURRENCY=GHS
+PAYSTACK_BASE_URL=https://api.paystack.co
 ```
 
-Register for MTN MoMo sandbox credentials at https://developer.mtn.com to provision the primary key, API user, and API key. The backend will refuse to process mobile money payments until those three variables are populated.
+Card and Mobile Money payments are verified against Paystack before the sale is marked completed.
 
 For reference see:
 
@@ -274,18 +268,12 @@ REFRESH_TOKEN_EXPIRES=7d
 CORS_ORIGINS=http://localhost:5173,https://your-vercel-project.vercel.app
 ```
 
-If you use MTN MoMo in production or sandbox, also set:
+If you use Paystack in production or staging, also set:
 
 ```
-MTN_MOMO_BASE_URL=...
-MTN_MOMO_TARGET_ENV=...
-MTN_MOMO_CURRENCY=GHS
-MTN_MOMO_COLLECTION_PRIMARY_KEY=...
-MTN_MOMO_API_USER=...
-MTN_MOMO_API_KEY=...
-MTN_MOMO_CALLBACK_URL=...
-MTN_MOMO_STATUS_POLL_ATTEMPTS=8
-MTN_MOMO_STATUS_POLL_INTERVAL_MS=2500
+PAYSTACK_SECRET_KEY=...
+PAYSTACK_CURRENCY=GHS
+PAYSTACK_BASE_URL=https://api.paystack.co
 ```
 
 ## Cookies and Cross-Origin Auth

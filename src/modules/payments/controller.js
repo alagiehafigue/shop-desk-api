@@ -2,9 +2,24 @@ import {
   getPayments,
   getPaymentSummary,
   getPendingSales,
+  initializePayment,
   processPayment,
 } from "./service.js";
-import { processPaymentSchema } from "./validation.js";
+import { initializePaymentSchema, processPaymentSchema } from "./validation.js";
+
+export const initialize = async (req, res) => {
+  try {
+    const data = initializePaymentSchema.parse(req.body);
+
+    const result = await initializePayment(data);
+
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+};
 
 export const pay = async (req, res) => {
   try {

@@ -1,99 +1,220 @@
 import pool from "../../config/db.js";
-import { simulateCardTerminalPayment } from "./cardSimulator.js";
-import { simulateMtnMomoCollection } from "./mtnMomo.js";
+import {
+  buildPaystackReference,
+  getPaystackCurrency,
+  initializePaystackTransaction,
+  verifyPaystackTransaction,
+} from "./paystack.js";
+
+async function getSaleForPayment(client, saleId) {
+  const result = await client.query(
+    `SELECT
+       s.id,
+       s.customer_id,
+       s.total_amount,
+       s.status,
+       c.email AS customer_email,
+       c.name AS customer_name,
+       c.phone AS customer_phone,
+       u.email AS cashier_email,
+       u.name AS cashier_name,
+       EXISTS (
+         SELECT 1
+         FROM payments
+         WHERE sale_id = s.id
+       ) AS has_payment
+     FROM sales s
+     LEFT JOIN customers c ON c.id = s.customer_id
+     LEFT JOIN users u ON u.id = s.user_id
+     WHERE s.id = $1`,
+    [saleId],
+  );
+
+  return result.rows[0];
+}
+
+function assertPendingSale(sale) {
+  if (!sale) {
+    throw new Error("Sale not found");
+  }
+
+  if (sale.status !== "pending" || sale.has_payment) {
+    throw new Error("Sale already paid or closed");
+  }
+}
+
+function resolvePaystackEmail(sale) {
+  return (
+    sale.customer_email ||
+    sale.cashier_email ||
+    `sale-${sale.id.replace(/-/g, "")}@shopdesk.local`
+  );
+}
+
+async function awardLoyaltyPoints(client, sale) {
+  if (!sale.customer_id) {
+    return;
+  }
+
+  const points = Math.floor(Number(sale.total_amount) / 10);
+
+  await client.query(
+    `
+      UPDATE customers
+      SET loyalty_points = loyalty_points + $1
+      WHERE id = $2
+    `,
+    [points, sale.customer_id],
+  );
+}
+
+function toMajorUnit(amount) {
+  return Number(amount ?? 0);
+}
+
+function getExpectedChannel(method) {
+  return method === "momo" ? "mobile_money" : "card";
+}
+
+function buildPaymentResult({
+  amountPaid,
+  change,
+  method,
+  saleId,
+  total,
+  transaction,
+}) {
+  return {
+    sale_id: saleId,
+    total,
+    amount_paid: amountPaid,
+    change,
+    method,
+    card_bank: transaction?.authorization?.bank ?? null,
+    card_brand: transaction?.authorization?.brand ?? null,
+    card_last4: method === "card" ? transaction?.authorization?.last4 ?? null : null,
+    card_reference_id: method === "card" ? transaction?.reference ?? null : null,
+    momo_currency: method === "momo" ? transaction?.currency ?? null : null,
+    momo_reference_id: method === "momo" ? transaction?.reference ?? null : null,
+    paystack_channel: transaction?.channel ?? null,
+    paystack_currency: transaction?.currency ?? null,
+    paystack_gateway_response: transaction?.gateway_response ?? null,
+    paystack_paid_at: transaction?.paid_at ?? null,
+    paystack_reference_id: transaction?.reference ?? null,
+  };
+}
+
+export const initializePayment = async ({ sale_id, method, payer_phone }) => {
+  const client = await pool.connect();
+
+  try {
+    const sale = await getSaleForPayment(client, sale_id);
+
+    assertPendingSale(sale);
+
+    const total = toMajorUnit(sale.total_amount);
+    const reference = buildPaystackReference(sale_id);
+    const channels = [getExpectedChannel(method)];
+    const metadata = {
+      cashier_name: sale.cashier_name,
+      customer_name: sale.customer_name,
+      payer_phone: payer_phone || sale.customer_phone || null,
+      sale_id,
+      source: "shopdesk",
+    };
+
+    const transaction = await initializePaystackTransaction({
+      amount: total,
+      channels,
+      email: resolvePaystackEmail(sale),
+      metadata,
+      reference,
+    });
+
+    return {
+      access_code: transaction.access_code,
+      amount: total,
+      authorization_url: transaction.authorization_url,
+      currency: getPaystackCurrency(),
+      method,
+      reference: transaction.reference,
+      sale_id,
+    };
+  } finally {
+    client.release();
+  }
+};
 
 export const processPayment = async ({
   sale_id,
   method,
   amount_paid,
-  payer_phone,
-  card_auth_code,
-  card_holder_name,
-  card_last4,
+  paystack_reference,
 }) => {
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
-    const saleRes = await client.query(
-      `SELECT total_amount, status,
-              EXISTS (
-                SELECT 1
-                FROM payments
-                WHERE sale_id = sales.id
-              ) AS has_payment
-       FROM sales
-       WHERE id = $1`,
-      [sale_id],
-    );
+    const sale = await getSaleForPayment(client, sale_id);
 
-    const sale = saleRes.rows[0];
+    assertPendingSale(sale);
 
-    if (!sale) {
-      throw new Error("Sale not found");
-    }
+    const total = toMajorUnit(sale.total_amount);
+    let verifiedTransaction = null;
+    let amountPaid = Number(amount_paid);
+    let change = amountPaid - total;
 
-    if (sale.status !== "pending" || sale.has_payment) {
-      throw new Error("Sale already paid or closed");
-    }
-
-    const saleInfo = await client.query(
-      `
-  SELECT customer_id, total_amount
-  FROM sales
-  WHERE id=$1
-  `,
-      [sale_id],
-    );
-
-    const { customer_id, total_amount } = saleInfo.rows[0];
-
-    if (customer_id) {
-      const points = Math.floor(total_amount / 10);
-
-      await client.query(
-        `
-    UPDATE customers
-    SET loyalty_points = loyalty_points + $1
-    WHERE id = $2
-    `,
-        [points, customer_id],
-      );
-    }
-
-    const total = Number(sale.total_amount);
-
-    if (amount_paid < total) {
-      throw new Error("Insufficient payment");
-    }
-
-    let momoMetadata = null;
-    let cardMetadata = null;
-
-    if (method === "momo") {
-      if (!payer_phone) {
-        throw new Error("Mobile Money payments require a payer phone number");
+    if (method === "cash") {
+      if (amountPaid < total) {
+        throw new Error("Insufficient payment");
+      }
+    } else {
+      if (!paystack_reference) {
+        throw new Error("Paystack reference is required for card and mobile money");
       }
 
-      momoMetadata = await simulateMtnMomoCollection({
-        amount: total,
-        payerPhone: payer_phone,
-        saleId: sale_id,
-      });
+      verifiedTransaction = await verifyPaystackTransaction(paystack_reference);
+
+      if (verifiedTransaction.status !== "success") {
+        throw new Error("Paystack payment is not successful");
+      }
+
+      const metadataSaleId = verifiedTransaction.metadata?.sale_id;
+
+      if (metadataSaleId && metadataSaleId !== sale_id) {
+        throw new Error("Paystack payment reference does not match this sale");
+      }
+
+      const verifiedAmount = Number(verifiedTransaction.amount ?? 0) / 100;
+
+      if (Math.round(verifiedAmount * 100) !== Math.round(total * 100)) {
+        throw new Error("Verified Paystack amount does not match the sale total");
+      }
+
+      if (
+        verifiedTransaction.currency &&
+        verifiedTransaction.currency.toUpperCase() !== getPaystackCurrency()
+      ) {
+        throw new Error("Paystack payment currency does not match this store");
+      }
+
+      const expectedChannel = getExpectedChannel(method);
+
+      if (
+        verifiedTransaction.channel &&
+        verifiedTransaction.channel !== expectedChannel
+      ) {
+        throw new Error(
+          `Paystack payment was completed with ${verifiedTransaction.channel}, expected ${expectedChannel}`,
+        );
+      }
+
+      amountPaid = verifiedAmount;
+      change = 0;
     }
 
-    if (method === "card") {
-      cardMetadata = await simulateCardTerminalPayment({
-        amount: total,
-        authCode: card_auth_code,
-        cardHolderName: card_holder_name,
-        cardLast4: card_last4,
-        saleId: sale_id,
-      });
-    }
-
-    const change = amount_paid - total;
+    await awardLoyaltyPoints(client, sale);
 
     await client.query(
       `
@@ -114,19 +235,14 @@ export const processPayment = async ({
 
     await client.query("COMMIT");
 
-    return {
-      sale_id,
-      total,
-      amount_paid,
+    return buildPaymentResult({
+      amountPaid,
       change,
       method,
-      card_approval_code: cardMetadata?.approvalCode ?? null,
-      card_last4: cardMetadata?.cardLast4 ?? null,
-      card_reference_id: cardMetadata?.referenceId ?? null,
-      card_terminal_status: cardMetadata?.terminalStatus ?? null,
-      momo_currency: momoMetadata?.currency ?? null,
-      momo_reference_id: momoMetadata?.referenceId ?? null,
-    };
+      saleId: sale_id,
+      total,
+      transaction: verifiedTransaction,
+    });
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
