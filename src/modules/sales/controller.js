@@ -1,4 +1,4 @@
-import { createSale, getReceipt } from "./service.js";
+import { createSale, getReceipt, getSaleById } from "./service.js";
 import { createSaleSchema } from "./validation.js";
 
 export const create = async (req, res) => {
@@ -23,6 +23,18 @@ export const receipt = async (req, res) => {
     const receiptData = await getReceipt(req.params.id);
 
     res.json(receiptData);
+  } catch (error) {
+    res.status(404).json({
+      message: error.message,
+    });
+  }
+};
+
+export const getSale = async (req, res) => {
+  try {
+    const saleData = await getSaleById(req.params.id);
+
+    res.json(saleData);
   } catch (error) {
     res.status(404).json({
       message: error.message,

@@ -1,6 +1,6 @@
 import express from "express";
 
-import { create, receipt } from "./controller.js";
+import { create, receipt, getSale } from "./controller.js";
 
 import { authenticate } from "../../middlewares/authMiddleware.js";
 import { authorize } from "../../middlewares/authorize.js";
@@ -13,6 +13,7 @@ router.post(
   authorize("admin", "manager", "cashier"),
   create,
 );
+router.get("/:id", authenticate, getSale);
 router.get("/:id/receipt", authenticate, receipt);
 
 export default router;
